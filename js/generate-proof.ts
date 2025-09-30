@@ -1,6 +1,6 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
-import circuit from "../circuits/target/noir_psi_proof.json";
+import circuit from "../circuits/target/noir_solidity_verifier_demo.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -10,9 +10,11 @@ import { Noir } from "@noir-lang/noir_js";
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
 
     const inputs = {
-      a: [1, 2, 3, 4],
-      b: [3, 4, 5, 6],
-      expected_count: 2
+      A: 3,
+      B: 4,
+      C: 5,
+      D: 25,
+      x: 2,
     };
 
     const { witness } = await noir.execute(inputs);
