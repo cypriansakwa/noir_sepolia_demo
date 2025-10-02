@@ -1,6 +1,6 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
-import circuit from "../circuits/target/noir_solidity_verifier_demo.json";
+import circuit from "../circuits/target/noir_sepolia_demo.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 

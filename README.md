@@ -1,197 +1,123 @@
-# noir_solidity_verifier_demo
+# noir_sepolia_demo
 
-This project demonstrates how to build a Noir circuit, generate a Solidity verifier, and deploy it with Foundry for on-chain proof verification.  
-The example circuit proves knowledge of a secret `x` that satisfies a public affine (linear) equation:
+### Deploying a Noir Verifier Contract to Sepolia/Holesky Testnet
 
-\[
-A \cdot x + B = C
-\]
+This repository demonstrates how to deploy a Noir-generated Solidity Verifier contract to a **real Ethereum testnet** (Sepolia or Holesky) using **Foundry**.  
 
-without revealing `x`.
+Previously, we worked with local deployments on **Anvil** [noir_solidity_verifier_demo](https://github.com/cypriansakwa/noir_solidity_verifier_demo).
+ Now, we extend this workflow to public testnets, gaining hands-on experience with **deployment, verification, and interaction on Etherscan**.
 
 ---
 
-## 🎯 Objectives
-
-- Understand the role of `Verifier.sol` in verifying Noir proofs on-chain.  
-- Explore the Foundry project structure (`Verifier.sol`, `CyprianVerifierApp.sol`, etc.).  
-- Inspect the verifier contract name (e.g., `HonkVerifier`).  
-- Deploy the verifier contract locally (Anvil) or remotely.  
-- Verify a ZK proof both inside Foundry tests and on-chain calls.  
+## 🚀 Learning Objectives
+By following this tutorial, you will:
+- Safely configure MetaMask for testnets  
+- Manage secrets using a `.env` file  
+- Fund test accounts with faucet ETH  
+- Deploy Noir’s `Verifier.sol` contract on Sepolia/Holesky  
+- Verify the deployed contract on Etherscan  
 
 ---
 
-## 📝 Circuit
+## ⚠️ Safety First
+- **Never use Mainnet accounts** for testing.  
+- Use a **throwaway MetaMask account** (new key, testnet-only).  
+- Secure your `.env` file:
+  ```bash
+  chmod 600 .env
+  grep -qxF ".env" .gitignore || echo ".env" >> .gitignore
+  ```
+- Do not paste your private key into public repos or chats.
+- Double-check that you are on Sepolia/Holesky RPC before deploying.
 
-The Noir circuit is located in `circuits/src/main.nr`:
+## 🔑 Setup
 
-```rust
-fn main(x: Field, A: pub Field, B: pub Field, C: pub Field) {
-    assert(A * x + B == C);
-}
-```
-- Public inputs: `A, B, C`
-- Private input: `x`
+### 🦊 MetaMask
+- Create a **new account** in MetaMask for testing only.  
+- Export the **private key** (⚠️ use only for testnets, never Mainnet).  
 
-Tests are included to check valid/invalid equations.
+### 💧 Fund with Faucet ETH
+- [Sepolia Faucet (Alchemy)](https://sepoliafaucet.com)  
+- [QuickNode Sepolia Faucet](https://faucet.quicknode.com/ethereum/sepolia)  
+- [Holesky Faucet](https://holeskyfaucet.com)  
 
-## 📁 Project Structure
+## 📂 .env Configuration
+Create `.env` inside `contract/`:
 
 ```bash
-zkp_linear_check/
-│
-├── circuits/        # Noir circuit and build outputs
-│   ├── src/main.nr
-│   └── target/
-│
-├── js/              # bb.js proof generation
-│   └── generate-proof.ts
-│
-├── contract/        # Foundry project
-│   ├── Verifier.sol
-│   ├── CyprianVerifierApp.sol
-│   ├── script/Deploy.s.sol
-│   └── test/VerifyProof.t.sol
-
+PRIVATE_KEY=0xYOUR_TEST_PRIVATE_KEY
+RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+CHAIN_ID=11155111
+ETHERSCAN_API_KEY=YOUR_ETHERSCAN_KEY   # optional
 ```
 
-## ⚙️ Building and Proof Generation
-1. Compile Noir circuit:
-   
-   ```bash
-   cd circuits
-   nargo compile
-   ```
-2. Write verification key:
-   
-   ```bash
-   bb write_vk --oracle_hash keccak \
-  -b ./target/noir_solidity_verifier_demo.json \
-  -o ./target
-   ```
-3. Generate Solidity verifier:
- ```bash
- bb write_solidity_verifier \
-  -k ./target/vk \
-  -o ../contract/Verifier.sol
- ```
-4. Generate proof and public inputs:
-   ```bash
-   nargo execute
-   bb prove \
-  -b ./target/noir_solidity_verifier_demo.json \
-  -w ./target/noir_solidity_verifier_demo.gz \
-  -o ./target \
-  --oracle_hash keccak
-   ```
-This produces:
- - `target/proof`
- - `target/public-inputs.json`
+## 🔧 Foundry Setup
+In `foundry.toml`, you can add endpoints for convenience:
 
-## 🔍 Inspecting the Verifier
-In the Foundry project:
+```bash
+[rpc_endpoints]
+sepolia = "https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY"
+holesky = "https://ethereum-holesky.publicnode.com"
 
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 11155111 }
+```
+
+## 🛠️ Build & Sanity Check
 ```bash
 cd contract
-grep -E "contract " Verifier.sol | head -n 5
+forge build --sizes
 ```
+## 📜 Deployment Script
 
-Take note of the verifier contract name (e.g., HonkVerifier).
-This is the contract you will deploy.
-
-## 🚀 Deployment with Foundry
-Deployment Script (`script/Deploy.s.sol`)
-
+File: `script/Deploy.s.sol`
 ```solidity
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
-
-import {Script, console} from "forge-std/Script.sol";
-import {HonkVerifier} from "../Verifier.sol";
-
 contract DeployScript is Script {
-    function run() public {
+    function run() external {
         vm.startBroadcast();
-        HonkVerifier verifier = new HonkVerifier();
-        console.log("Verifier deployed at:", address(verifier));
+        Verifier verifier = new Verifier();
         vm.stopBroadcast();
     }
 }
 ```
-### Run Local Node
 
-```bash
-anvil
+### Example Output
+```yanl
+Verifier deployed at: 0xdF7b738ECa9FDEf817f0193f...
+Chain 11155111
+Tx Hash: 0x05c3d224391d0aa7f0632b6b17ddd899b59...
 ```
-### Deploy Contract
+## ✅ Verification on Etherscan
 
+With your API key, you can auto-verify:
 ```bash
 forge script script/Deploy.s.sol:DeployScript \
-  --rpc-url http://127.0.0.1:8545 \
-  --broadcast
-```
-
-## ✅ Verification On-Chain
-Once deployed, call the verifier with the generated proof + public inputs.
-
-Example Foundry Test (`test/VerifyProof.t.sol`)
-
-```solidity
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
-
-import "forge-std/Test.sol";
-import "../Verifier.sol"; // HonkVerifier
-
-contract VerifyProofTest is Test {
-    HonkVerifier public verifier;
-    bytes32 ;
-
-    function setUp() public {
-        verifier = new HonkVerifier();
-        publicInputs[0] = bytes32(uint256(3));
-        publicInputs[1] = bytes32(uint256(4));
-        publicInputs[2] = bytes32(uint256(5));
-        publicInputs[3] = bytes32(uint256(19));
-    }
-
-    function testVerifyProof() public {
-        bytes memory proof = vm.readFileBinary("../circuits/target/proof");
-        bool result = verifier.verify(proof, publicInputs);
-        assert(result);
-    }
-}
-```
-
-Run with:
-```bash
-forge test -vvv
-```
-## 📌 Troubleshooting
-- Contract too large (>24 KB):
-```toml
-# foundry.toml
-optimizer = true
-optimizer_runs = 200
-# via_ir = true
-```
-Then rebuild with:
-
-```bash
-forge clean && forge build --sizes
-```
-- Sender/private key issues:
-  Use Anvil’s default accounts:
-  ```bash
-  source .env
-  forge script script/Deploy.s.sol:DeployScript \
   --rpc-url $RPC_URL \
   --private-key $PRIVATE_KEY \
-  --broadcast
-  ```
-  ## 🎓 Outcomes
-  By the end of this workflow you should be able to:
-  - Compile Noir circuits and generate Solidity verifiers.
-  - Deploy verifier contracts on Anvil/EVM with Foundry.
-  - Verify proofs using both unit tests (`forge test)` and direct on-chain calls.
-  - Understand how to connect Noir → proof generation → Solidity verification end-to-end.
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+
+```
+If successful, you’ll see:
+```nginx
+Contract successfully verified!
+```
+### ✅ Then check on Etherscan
+👉 [View your contract on Sepolia Etherscan](https://sepolia.etherscan.io/address/YOUR_CONTRACT_ADDRESS)
+
+---
+
+## 📌 Summary
+
+You now know how to:
+
+- 🦊 Set up **MetaMask** test accounts  
+- 🔐 Securely manage secrets with **.env**  
+- 💧 Fund accounts with **faucet ETH**  
+- 🚀 Deploy **Noir verifier contracts** to Sepolia/Holesky  
+- 🔎 Verify contracts on **Etherscan**  
+
+---
+
+🎉 **Your Noir Verifier is live on Testnet and open for interaction!**
